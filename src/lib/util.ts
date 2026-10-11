@@ -8,8 +8,8 @@ export function uid(): string {
   );
 }
 
-export const IMAGE_BASE =
-  "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/";
+// Proxied through our own domain, see rewrites in next.config.ts
+export const IMAGE_BASE = "/ex-img/";
 
 export function fmtDuration(sec: number): string {
   const m = Math.floor(sec / 60);

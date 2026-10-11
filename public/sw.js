@@ -1,10 +1,10 @@
 // Minimal offline support: cache the app shell, static assets, the exercise
 // library and demo images so the app opens at the gym even with bad signal.
 // Supabase requests are never cached (workouts queue locally in the app instead).
-const CACHE = "gym-v1";
+const CACHE = "gym-v2";
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(["/", "/exercises.json"])));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(["/", "/exercises.json", "/body.bin"])));
   self.skipWaiting();
 });
 
@@ -20,8 +20,8 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   const sameOrigin = url.origin === self.location.origin;
-  const isImage = url.hostname === "raw.githubusercontent.com";
-  if (!sameOrigin && !isImage) return;
+  if (!sameOrigin) return;
+  const isImage = url.pathname.startsWith("/ex-img/");
 
   // Pages: network first, fall back to cache when offline
   if (req.mode === "navigate") {
@@ -37,14 +37,32 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Static assets, exercise data and images: cache first
-  if (isImage || url.pathname.startsWith("/_next/static") || url.pathname === "/exercises.json" || /\.(png|svg|ico|woff2?)$/.test(url.pathname)) {
+  // App data that can change between deploys: serve cached copy, refresh in the background
+  if (url.pathname === "/exercises.json" || url.pathname === "/body.bin") {
+    e.respondWith(
+      caches.open(CACHE).then((c) =>
+        c.match(req).then((hit) => {
+          const fresh = fetch(req)
+            .then((res) => {
+              if (res.ok) c.put(req, res.clone());
+              return res;
+            })
+            .catch(() => hit);
+          return hit || fresh;
+        }),
+      ),
+    );
+    return;
+  }
+
+  // Static assets and images: cache first (file names are content-hashed or never change)
+  if (isImage || url.pathname.startsWith("/_next/static") || /\.(png|svg|ico|woff2?)$/.test(url.pathname)) {
     e.respondWith(
       caches.match(req).then(
         (hit) =>
           hit ||
           fetch(req).then((res) => {
-            if (res.ok || res.type === "opaque") {
+            if (res.ok) {
               const copy = res.clone();
               caches.open(CACHE).then((c) => c.put(req, copy));
             }

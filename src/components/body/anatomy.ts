@@ -38,10 +38,10 @@ export const TORSO_PROFILE: [number, number][] = [
   [0.0, 0.79],
   [0.07, 0.8],
   [0.13, 0.84],
-  [0.155, 0.9],
-  [0.152, 0.97],
-  [0.136, 1.04],
-  [0.143, 1.12],
+  [0.152, 0.9],
+  [0.154, 0.97],
+  [0.146, 1.04],
+  [0.152, 1.12],
   [0.162, 1.22],
   [0.178, 1.32],
   [0.176, 1.39],
@@ -116,11 +116,13 @@ function rightSide(): Ellipsoid[] {
   const S = SEGMENTS;
   return [
     // Torso front
-    onTorso("chest", 0.088, 1.315, "front", [0.092, 0.074, 0.055], { rotZ: 0.12, embed: 0.62 }),
-    onTorso("abdominals", 0.037, 1.19, "front", [0.035, 0.036, 0.024], { embed: 0.6 }),
-    onTorso("abdominals", 0.037, 1.115, "front", [0.035, 0.035, 0.024], { embed: 0.6 }),
-    onTorso("abdominals", 0.037, 1.04, "front", [0.034, 0.037, 0.024], { embed: 0.6 }),
-    onTorso("abdominals", 0.034, 0.955, "front", [0.032, 0.048, 0.022], { embed: 0.6 }),
+    // Pecs: main mass + a wing that fans out toward the armpit
+    onTorso("chest", 0.07, 1.315, "front", [0.078, 0.07, 0.05], { rotZ: 0.1, embed: 0.68 }),
+    onTorso("chest", 0.13, 1.355, "front", [0.06, 0.045, 0.04], { rotZ: 0.5, embed: 0.7 }),
+    onTorso("abdominals", 0.038, 1.19, "front", [0.038, 0.04, 0.024], { embed: 0.62 }),
+    onTorso("abdominals", 0.038, 1.112, "front", [0.038, 0.04, 0.024], { embed: 0.62 }),
+    onTorso("abdominals", 0.037, 1.034, "front", [0.037, 0.041, 0.024], { embed: 0.62 }),
+    onTorso("abdominals", 0.034, 0.95, "front", [0.034, 0.05, 0.022], { embed: 0.62 }),
     onTorso("abdominals", 0.112, 1.07, "front", [0.04, 0.1, 0.03], { rotZ: -0.12, rotY: 0.55, embed: 0.6 }),
     // Shoulders (deltoid caps)
     {
