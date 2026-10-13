@@ -4,11 +4,13 @@ import { requireProfile } from "@/components/RequireProfile";
 import { ChevronDown, Scale, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ExerciseDetail } from "@/components/ExerciseDetail";
-import { Button, Card, Spinner, Stat } from "@/components/ui";
+import { Button, Card, PageHeader, SectionHeader, Spinner, Stat } from "@/components/ui";
+import { Rings } from "@/components/Rings";
 import { WeightChart } from "@/components/WeightChart";
 import { weekStreak, workoutMuscles, workoutVolume } from "@/lib/analytics";
 import { useExercises, useMountTime } from "@/lib/exercises";
 import { MUSCLE_LABEL } from "@/lib/muscles";
+import { computeRings } from "@/lib/rings";
 import { useData, useHistory, useWorkout } from "@/lib/store";
 import type { WorkoutWithSets } from "@/lib/types";
 import { cn, fmtDate, fmtDuration } from "@/lib/util";
@@ -62,9 +64,9 @@ function BodyWeight() {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder={`Today's weight (${units})`}
-          className="h-11 min-w-0 flex-1 rounded-xl border border-line bg-card2 px-3 outline-none focus:border-accent"
+          className="h-12 min-w-0 flex-1 rounded-2xl border border-line bg-white/[0.05] px-4 outline-none focus:border-accent/60"
         />
-        <Button variant="primary" onClick={save} disabled={!value}>
+        <Button variant="primary" size="lg" className="h-12" onClick={save} disabled={!value}>
           Log
         </Button>
       </div>
@@ -98,6 +100,7 @@ function WorkoutCard({ w, onExercise }: { w: WorkoutWithSets; onExercise: (id: s
   const units = useData((s) => s.profile?.units ?? "kg");
   const del = useData((s) => s.deleteWorkout);
   const pending = useWorkout((s) => s.pending.some((p) => p.id === w.id));
+  const profile = useData((s) => s.profile);
   const [open, setOpen] = useState(false);
   const secs = Math.round((new Date(w.ended_at).getTime() - new Date(w.started_at).getTime()) / 1000);
   const groups = useMemo(() => {
@@ -108,33 +111,43 @@ function WorkoutCard({ w, onExercise }: { w: WorkoutWithSets; onExercise: (id: s
     return [...m.entries()];
   }, [w]);
 
+  const d = new Date(w.started_at);
   return (
     <Card className="p-0">
-      <button onClick={() => setOpen(!open)} className="flex w-full items-start gap-3 p-4 text-left">
+      <button onClick={() => setOpen(!open)} className="flex w-full items-center gap-4 p-4 text-left">
+        <div className="flex w-12 shrink-0 flex-col items-center rounded-2xl bg-white/[0.05] py-1.5">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted">
+            {d.toLocaleDateString(undefined, { month: "short" })}
+          </span>
+          <span className="num text-[26px] font-semibold">{d.getDate()}</span>
+        </div>
         <div className="min-w-0 flex-1">
-          <div className="text-xs text-muted">
-            {fmtDate(w.started_at)} {pending && <span className="text-amber-300">· not synced</span>}
+          <div className="flex items-center gap-2">
+            <span className="truncate font-bold">{w.title}</span>
+            {pending && <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-semibold text-amber-200">not synced</span>}
           </div>
-          <div className="font-semibold">{w.title}</div>
-          <div className="mt-1 text-xs text-muted">
-            {fmtDuration(secs)} · {w.sets.filter((s) => s.section === "main").length} sets ·{" "}
+          <div className="mt-0.5 text-xs text-muted">
+            {d.toLocaleDateString(undefined, { weekday: "long" })} · {fmtDuration(secs)} · {w.sets.filter((s) => s.section === "main").length} sets ·{" "}
             {Math.round(workoutVolume(w)).toLocaleString()} {units}
           </div>
           <div className="mt-2 flex flex-wrap gap-1">
-            {workoutMuscles(w, db).map((m) => (
-              <span key={m} className="rounded-full bg-card2 px-2 py-0.5 text-[11px] text-muted">
-                {MUSCLE_LABEL[m]}
-              </span>
-            ))}
+            {workoutMuscles(w, db)
+              .slice(0, 5)
+              .map((m) => (
+                <span key={m} className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-ink/70">
+                  {MUSCLE_LABEL[m]}
+                </span>
+              ))}
           </div>
         </div>
-        <ChevronDown size={20} className={cn("mt-1 text-muted transition", open && "rotate-180")} />
+        {profile && <Rings rings={computeRings([w], db, profile, "session")} size={46} stroke={5} gap={1.5} />}
+        <ChevronDown size={18} className={cn("text-muted transition", open && "rotate-180")} />
       </button>
       {open && (
-        <div className="border-t border-line px-4 pb-4 pt-2">
+        <div className="border-t border-white/[0.06] px-4 pb-4 pt-2">
           {groups.map(([id, sets]) => (
-            <div key={id} className="border-b border-line py-2 last:border-0">
-              <button onClick={() => onExercise(id)} className="text-left text-sm font-medium">
+            <div key={id} className="border-b border-white/[0.05] py-2.5 last:border-0">
+              <button onClick={() => onExercise(id)} className="text-left text-sm font-semibold">
                 {db.byId.get(id)?.name ?? id}
               </button>
               <div className="text-xs tabular-nums text-muted">
@@ -169,8 +182,8 @@ function HistoryPage() {
   const month = history.filter((w) => new Date(w.started_at).getTime() > monthAgo);
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">History</h1>
+    <div className="space-y-5">
+      <PageHeader eyebrow="Your progress" title="History" />
       <div className="grid grid-cols-3 gap-2">
         <Stat label="Last 30 days" value={month.length} />
         <Stat label="Week streak" value={weekStreak(history)} />
@@ -181,6 +194,7 @@ function HistoryPage() {
         <p className="py-8 text-center text-sm text-muted">No workouts yet. Your first one will show up here.</p>
       ) : (
         <div className="space-y-3">
+          <SectionHeader title="Workouts" />
           {history.map((w) => (
             <WorkoutCard key={w.id} w={w} onExercise={setDetail} />
           ))}

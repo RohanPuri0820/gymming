@@ -3,6 +3,8 @@
 import { Dumbbell } from "lucide-react";
 import { useState } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
+import { RING_COLOR } from "@/lib/rings";
+import { Rings } from "./Rings";
 import { Button, Card } from "./ui";
 
 export function Login() {
@@ -28,14 +30,25 @@ export function Login() {
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-5">
-      <div className="mb-8 flex items-center gap-3">
-        <div className="rounded-2xl bg-accent p-3 text-accent-ink">
-          <Dumbbell size={26} />
+      <div className="mb-10 flex flex-col items-center text-center">
+        <div className="relative mb-6">
+          <div className="absolute inset-0 rounded-full bg-accent/20 blur-3xl" />
+          <Rings
+            size={170}
+            stroke={16}
+            gap={5}
+            rings={[
+              { key: "volume", label: "", value: 0.82, target: 1, unit: "", color: RING_COLOR.volume },
+              { key: "sessions", label: "", value: 0.64, target: 1, unit: "", color: RING_COLOR.sessions },
+              { key: "cardio", label: "", value: 0.9, target: 1, unit: "", color: RING_COLOR.cardio },
+            ]}
+          />
+          <div className="absolute inset-0 flex items-center justify-center text-accent">
+            <Dumbbell size={30} />
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold">Gym Tracker</h1>
-          <p className="text-sm text-muted">Log fast. Train smart.</p>
-        </div>
+        <h1 className="num text-[46px] font-bold uppercase">Close your rings</h1>
+        <p className="mt-2 max-w-[260px] text-sm text-muted">Workouts built for you, logged in seconds, and your progress on a 3D body.</p>
       </div>
       {!supabaseConfigured ? (
         <Card>
@@ -54,7 +67,7 @@ export function Login() {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="h-12 w-full rounded-xl border border-line bg-card px-4 outline-none focus:border-accent"
+            className="h-14 w-full rounded-2xl border border-line bg-white/[0.05] px-4 outline-none transition focus:border-accent/60"
           />
           <input
             type="password"
@@ -64,7 +77,7 @@ export function Login() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="h-12 w-full rounded-xl border border-line bg-card px-4 outline-none focus:border-accent"
+            className="h-14 w-full rounded-2xl border border-line bg-white/[0.05] px-4 outline-none transition focus:border-accent/60"
           />
           <Button variant="primary" size="lg" className="w-full" disabled={busy}>
             {busy ? "…" : mode === "in" ? "Sign in" : "Create account"}

@@ -32,7 +32,7 @@ export function fmtDate(iso: string): string {
 }
 
 export function daysAgo(iso: string): number {
-  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
 }
 
 export function cn(...c: (string | false | null | undefined)[]): string {

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { BodyMap } from "@/components/body/BodyMap";
 import { ExerciseDetail } from "@/components/ExerciseDetail";
 import { ExerciseList } from "@/components/ExerciseList";
-import { Spinner } from "@/components/ui";
+import { PageHeader, Spinner } from "@/components/ui";
 import { useExercises } from "@/lib/exercises";
 import { MUSCLES } from "@/lib/muscles";
 import type { MuscleId } from "@/lib/types";
@@ -24,7 +24,7 @@ function ExercisesPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Exercises</h1>
+      <PageHeader eyebrow={`${db.list.length} movements`} title="Exercise library" />
       <BodyMap
         className="h-[300px]"
         scores={muscle ? { [muscle]: 1 } : {}}
@@ -32,7 +32,7 @@ function ExercisesPage() {
         highlighted={muscle ? [muscle] : []}
         onSelect={(m) => setMuscle(muscle === m ? null : m)}
       />
-      <p className="-mt-2 text-xs text-muted">Tap a muscle on the body to filter.</p>
+      <p className="-mt-2 text-center text-xs text-muted">Tap a muscle to filter · drag to spin</p>
       <ExerciseList db={db} muscle={muscle} onMuscleChange={setMuscle} onPick={(ex) => setDetail(ex.id)} />
       <ExerciseDetail exerciseId={detail} onClose={() => setDetail(null)} />
     </div>

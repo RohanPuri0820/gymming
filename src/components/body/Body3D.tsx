@@ -136,6 +136,8 @@ function Body({ scores, palette, highlighted, onSelect }: Omit<Body3DProps, "vie
 
 function Controls({ view, autoRotate }: { view?: "front" | "back"; autoRotate?: boolean }) {
   const ref = useRef<ComponentRef<typeof OrbitControls>>(null);
+  // Idle spin until the user grabs the body
+  const [spinning, setSpinning] = useState(!!autoRotate);
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
@@ -151,8 +153,9 @@ function Controls({ view, autoRotate }: { view?: "front" | "back"; autoRotate?: 
       maxDistance={4.2}
       minPolarAngle={Math.PI * 0.18}
       maxPolarAngle={Math.PI * 0.82}
-      autoRotate={autoRotate}
-      autoRotateSpeed={1.2}
+      autoRotate={spinning}
+      autoRotateSpeed={0.8}
+      onStart={() => setSpinning(false)}
       enableDamping
       dampingFactor={0.12}
       rotateSpeed={0.9}

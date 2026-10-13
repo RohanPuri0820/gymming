@@ -18,19 +18,18 @@ const TYPES = [
 
 export function ExerciseRow({ ex, onClick, right }: { ex: Exercise; onClick?: () => void; right?: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3 border-b border-line py-2.5 last:border-0">
+    <div className="flex items-center gap-3 rounded-2xl px-1 py-2 transition hover:bg-white/[0.03]">
       <button onClick={onClick} className="flex min-w-0 flex-1 items-center gap-3 text-left">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={IMAGE_BASE + ex.images[0]}
-          alt=""
-          loading="lazy"
-          className="h-12 w-12 shrink-0 rounded-lg bg-card2 object-cover"
-        />
+        <img src={IMAGE_BASE + ex.images[0]} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl bg-white object-cover" />
         <div className="min-w-0">
-          <div className="truncate font-medium">{ex.name}</div>
-          <div className="truncate text-xs text-muted">
-            {ex.primary.map((m) => MUSCLE_LABEL[m]).join(", ")} · {ex.equipment} · {ex.level}
+          <div className="truncate font-semibold">{ex.name}</div>
+          <div className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted">
+            <span className="text-ink/70">{ex.primary.map((m) => MUSCLE_LABEL[m]).join(", ")}</span>
+            <span className="h-0.5 w-0.5 rounded-full bg-muted" />
+            {ex.equipment}
+            <span className="h-0.5 w-0.5 rounded-full bg-muted" />
+            {ex.level}
           </div>
         </div>
       </button>
@@ -90,10 +89,10 @@ export function ExerciseList({
             setShown(limit);
           }}
           placeholder="Search 870+ exercises"
-          className="h-11 w-full rounded-xl border border-line bg-card2 pl-10 pr-3 outline-none focus:border-accent"
+          className="h-12 w-full rounded-2xl border border-line bg-white/[0.05] pl-10 pr-3 outline-none transition focus:border-accent/60 focus:bg-white/[0.07]"
         />
       </div>
-      <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
+      <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
         <Chip active={!muscle} onClick={() => setMuscle(null)}>All muscles</Chip>
         {MUSCLES.map((m) => (
           <Chip key={m.id} active={muscle === m.id} onClick={() => setMuscle(muscle === m.id ? null : m.id)}>
@@ -101,7 +100,7 @@ export function ExerciseList({
           </Chip>
         ))}
       </div>
-      <div className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1">
+      <div className="no-scrollbar -mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1">
         {TYPES.map((t) => (
           <Chip key={t.id} active={type === t.id} onClick={() => setType(type === t.id ? null : t.id)}>
             {t.label}
@@ -114,14 +113,14 @@ export function ExerciseList({
           </Chip>
         ))}
       </div>
-      <div className="mt-2 text-xs text-muted">{results.length} exercises</div>
+      <div className="mt-3 px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">{results.length} exercises</div>
       <div className="mt-1">
         {results.slice(0, shown).map((ex) => (
           <ExerciseRow key={ex.id} ex={ex} onClick={() => onPick(ex)} right={renderRight?.(ex)} />
         ))}
       </div>
       {results.length > shown && (
-        <button onClick={() => setShown(shown + limit)} className="mt-3 w-full py-3 text-sm text-accent">
+        <button onClick={() => setShown(shown + limit)} className="mt-3 w-full rounded-2xl border border-line py-3 text-sm font-semibold text-accent">
           Show more
         </button>
       )}

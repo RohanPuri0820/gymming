@@ -1,24 +1,64 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-bg: #0b0d12;
-  --color-card: #151922;
-  --color-card2: #1c212c;
-  --color-line: #262c3a;
-  --color-muted: #8b93a7;
-  --color-ink: #eef1f6;
-  --color-accent: #a3e635;
-  --color-accent-ink: #1a2e05;
+  /* Surfaces: near-black base with two raised layers */
+  --color-bg: #06070a;
+  --color-card: #0f1116;
+  --color-card2: #171a22;
+  --color-line: rgb(255 255 255 / 0.07);
+  --color-muted: #8a90a2;
+  --color-ink: #f4f6fa;
+
+  /* Brand: electric lime is the primary action colour */
+  --color-accent: #c6f432;
+  --color-accent-ink: #0e1500;
+
+  /* Ring colours, each with one meaning everywhere in the app */
+  --color-ring-volume: #c6f432; /* working sets this week */
+  --color-ring-sessions: #ff5a6e; /* workouts this week */
+  --color-ring-cardio: #3ee6ff; /* cardio minutes this week */
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display-face);
 }
 
 html,
 body {
-  background: var(--color-bg);
-  color: var(--color-ink);
+  background: #06070a;
+  color: #f4f6fa;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
+}
+
+body {
+  /* faint lime glow at the top of every screen */
+  background-image: radial-gradient(120% 50% at 50% -10%, rgb(198 244 50 / 0.08), transparent 60%);
+  background-attachment: fixed;
+}
+
+/* Big numbers: condensed display face, tabular figures */
+.num {
+  font-family: var(--font-display-face), var(--font-geist-sans), sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  line-height: 0.95;
+}
+
+.glass {
+  background: rgb(15 17 22 / 0.88);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+
+.surface {
+  background-color: #101219;
+  border: 1px solid rgb(255 255 255 / 0.07);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
+.glow-accent {
+  box-shadow: 0 10px 40px -10px rgb(198 244 50 / 0.55), inset 0 1px 0 rgb(255 255 255 / 0.35);
 }
 
 /* Big, thumb-friendly number inputs without browser spinners */
@@ -33,6 +73,13 @@ input[type="number"] {
 
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
 }
 
 @keyframes flip {

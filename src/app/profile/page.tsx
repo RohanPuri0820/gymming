@@ -3,7 +3,7 @@
 import { requireProfile } from "@/components/RequireProfile";
 import { useState } from "react";
 import { ProfileForm } from "@/components/ProfileForm";
-import { Button, Card } from "@/components/ui";
+import { Button, Card, PageHeader } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 import { useData } from "@/lib/store";
 
@@ -14,7 +14,7 @@ function ProfilePage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Profile</h1>
+      <PageHeader eyebrow="Settings" title="Profile" />
       <Card>
         <ProfileForm
           initial={profile}

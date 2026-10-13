@@ -3,10 +3,11 @@
 import { Dumbbell, History, Home, Library, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { motion } from "motion/react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { useData, useWorkout } from "@/lib/store";
-import { cn } from "@/lib/util";
+import { cn, fmtDuration } from "@/lib/util";
 import { Login } from "./Login";
 import { Onboarding } from "./Onboarding";
 import { Spinner } from "./ui";
@@ -64,36 +65,86 @@ export function AppShell({ children }: { children: ReactNode }) {
       </>
     );
 
+  // Focused screens bring their own bottom bar
+  const focusMode = (pathname.startsWith("/workout") && !!active) || pathname.startsWith("/plan");
+
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col">
       {pending > 0 && (
-        <div className="bg-amber-500/15 px-4 py-1.5 text-center text-xs text-amber-200">
-          {pending} workout{pending > 1 ? "s" : ""} saved on this phone, will sync when you&apos;re online
+        <div className="bg-amber-400/10 px-4 py-1.5 text-center text-xs text-amber-200">
+          {pending} workout{pending > 1 ? "s" : ""} saved on this phone · syncs when you&apos;re online
         </div>
       )}
-      <main className="flex-1 px-4 pb-28 pt-4">{children}</main>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/95 backdrop-blur pb-safe">
-        <div className="mx-auto grid max-w-lg grid-cols-5">
-          {NAV.map(({ href, label, icon: Icon }) => {
-            const on = href === "/" ? pathname === "/" : pathname.startsWith(href);
-            const live = href === "/workout" && active;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  "relative flex flex-col items-center gap-1 py-2.5 text-[11px]",
-                  on ? "text-accent" : "text-muted",
-                )}
-              >
-                <Icon size={22} />
-                {label}
-                {live && <span className="absolute right-[30%] top-2 h-2 w-2 rounded-full bg-accent" />}
-              </Link>
-            );
-          })}
+      <motion.main
+        key={pathname}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        className={cn("flex-1 px-4 pt-[max(env(safe-area-inset-top),16px)]", focusMode ? "pb-10" : "pb-36")}
+      >
+        {children}
+      </motion.main>
+
+      {!focusMode && (
+        <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-lg px-3 pb-[max(env(safe-area-inset-bottom),12px)]">
+          {active && <LiveBar title={active.title} startedAt={active.startedAt} />}
+          <nav className="glass flex items-center justify-around rounded-[26px] border border-white/10 px-2 py-1.5 shadow-[0_20px_50px_-20px_rgb(0_0_0/0.9)]">
+            {NAV.map(({ href, label, icon: Icon }) => {
+              const on = href === "/" ? pathname === "/" : pathname.startsWith(href);
+              if (href === "/workout")
+                return (
+                  <Link key={href} href={href} aria-label={label} className="-mt-7">
+                    <span className="glow-accent flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-ink ring-4 ring-bg transition active:scale-95">
+                      <Icon size={26} strokeWidth={2.4} />
+                    </span>
+                  </Link>
+                );
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "relative flex w-16 flex-col items-center gap-0.5 rounded-2xl py-1.5 text-[10.5px] font-medium transition",
+                    on ? "text-ink" : "text-muted",
+                  )}
+                >
+                  {on && (
+                    <motion.span
+                      layoutId="nav-pill"
+                      className="absolute inset-0 -z-10 rounded-2xl bg-white/[0.08]"
+                      transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                    />
+                  )}
+                  <Icon size={21} strokeWidth={on ? 2.4 : 1.9} />
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
-      </nav>
+      )}
     </div>
+  );
+}
+
+function LiveBar({ title, startedAt }: { title: string; startedAt: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <Link
+      href="/workout"
+      className="glass mb-2 flex items-center gap-3 rounded-2xl border border-accent/30 px-4 py-2.5 shadow-[0_0_30px_-12px_rgb(198_244_50/0.6)]"
+    >
+      <span className="relative flex h-2.5 w-2.5">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-70" />
+        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-accent" />
+      </span>
+      <span className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</span>
+      <span className="num text-xl text-accent">{fmtDuration((now - new Date(startedAt).getTime()) / 1000)}</span>
+      <span className="text-xs font-semibold text-muted">Resume</span>
+    </Link>
   );
 }

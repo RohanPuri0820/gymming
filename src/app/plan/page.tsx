@@ -1,20 +1,21 @@
 "use client";
 
 import { requireProfile } from "@/components/RequireProfile";
-import { AlertTriangle, ArrowLeftRight, Info, Shuffle, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, ChevronLeft, Crosshair, Play, Plus, Shuffle, Sparkles, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { BodyMap } from "@/components/body/BodyMap";
 import { ExerciseDetail } from "@/components/ExerciseDetail";
 import { ExerciseList, ExerciseRow } from "@/components/ExerciseList";
-import { Button, Card, Chip, Sheet, Spinner } from "@/components/ui";
+import { Button, Card, Chip, SectionHeader, Segmented, Sheet, Spinner, Stat } from "@/components/ui";
 import { planScores } from "@/lib/analytics";
 import { useExercises } from "@/lib/exercises";
 import { buildItem, candidatesFor, FOCI, generateWorkout, suggestFocus, type FocusId, type Plan } from "@/lib/generator";
 import { MUSCLE_LABEL } from "@/lib/muscles";
 import { useData, useHistory, useWorkout } from "@/lib/store";
 import type { MuscleId, Section, WorkoutItem } from "@/lib/types";
-import { targetText } from "@/lib/util";
+import { IMAGE_BASE, targetText } from "@/lib/util";
 
 const SECTION_LABEL: Record<Section, string> = { warmup: "Warm-up", main: "Workout", cooldown: "Cool-down stretches" };
 
@@ -72,126 +73,192 @@ function PlanPage() {
   }
 
   const sections: Section[] = ["warmup", "main", "cooldown"];
+  const mainItems = items.filter((i) => i.section === "main");
+  const estMin = Math.round(
+    items.reduce(
+      (t, it) =>
+        t +
+        (it.mode === "time"
+          ? (it.sets.length * (it.target.durationSec + it.target.restSec)) / 60
+          : (it.sets.length * (35 + it.target.restSec)) / 60 + 1),
+      0,
+    ),
+  );
+  const targets = Object.entries(scores)
+    .sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))
+    .slice(0, 3)
+    .map(([m]) => MUSCLE_LABEL[m as MuscleId]);
+  let n = 0;
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Build a workout</h1>
+    <div className="space-y-5 pb-24">
+      <header className="flex items-center gap-3 pt-1">
+        <button onClick={() => router.back()} className="rounded-full bg-white/[0.06] p-2 text-muted" aria-label="Back">
+          <ChevronLeft size={20} />
+        </button>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Plan</p>
+          <h1 className="text-2xl font-bold leading-tight">Build your workout</h1>
+        </div>
+      </header>
 
-      <div>
-        <h3 className="mb-2 text-sm font-semibold">Focus</h3>
+      <section>
+        <SectionHeader title="Focus" />
         <div className="flex flex-wrap gap-2">
           {FOCI.map((f) => (
             <Chip key={f.id} active={focus === f.id} onClick={() => setFocus(f.id)}>
+              {suggestion?.focus === f.id && <Sparkles size={13} className="-ml-0.5 mr-1 inline" />}
               {f.label.replace(/ \(.*\)/, "")}
-              {suggestion?.focus === f.id && " ★"}
             </Chip>
           ))}
           <Chip active={focus === "custom"} onClick={() => setFocus("custom")}>
+            <Crosshair size={13} className="-ml-0.5 mr-1 inline" />
             Pick muscles
           </Chip>
         </div>
-      </div>
+      </section>
 
-      <div>
-        <h3 className="mb-2 text-sm font-semibold">Time</h3>
-        <div className="flex gap-2">
-          {[30, 45, 60, 75, 90].map((m) => (
-            <Chip key={m} active={minutes === m} onClick={() => setMinutes(m)}>
-              {m} min
-            </Chip>
-          ))}
-        </div>
-      </div>
+      <section>
+        <SectionHeader title="Time" />
+        <Segmented
+          value={String(minutes)}
+          onChange={(v) => setMinutes(+v)}
+          options={[30, 45, 60, 75, 90].map((m) => ({ id: String(m), label: `${m}′` }))}
+        />
+      </section>
 
-      <div>
+      <section>
         <BodyMap
-          className="h-[380px]"
+          className="h-[340px]"
           scores={scores}
           palette="heat"
           legend={["Light", "Main target"]}
           highlighted={focus === "custom" ? custom : []}
           onSelect={toggleMuscle}
+          overlay={
+            targets.length > 0 && (
+              <div className="pointer-events-none absolute left-3 top-3 flex max-w-[60%] flex-wrap gap-1.5">
+                {targets.map((t) => (
+                  <span key={t} className="glass rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-semibold">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )
+          }
         />
-        <p className="mt-2 text-xs text-muted">
+        <p className="mt-2 text-center text-xs text-muted">
           {focus === "custom"
             ? custom.length
-              ? `Picked: ${custom.map((m) => MUSCLE_LABEL[m]).join(", ")}. Tap again to remove.`
-              : "Tap the muscles you want to train."
-            : "What today's plan hits. Tap muscles to build your own instead."}
+              ? "Tap a muscle again to remove it"
+              : "Tap the muscles you want to train"
+            : "Tap muscles to build your own instead"}
         </p>
-      </div>
+      </section>
+
+      {plan && (
+        <div className="grid grid-cols-3 gap-2.5">
+          <Stat label="Exercises" value={mainItems.length} />
+          <Stat label="Sets" value={mainItems.reduce((t, i) => t + i.sets.length, 0)} />
+          <Stat label="Minutes" value={`~${estMin}`} />
+        </div>
+      )}
 
       {plan?.warnings.map((w) => (
-        <div key={w} className="flex gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
-          <AlertTriangle size={18} className="shrink-0" />
+        <div key={w} className="flex gap-2.5 rounded-2xl border border-amber-400/25 bg-amber-400/[0.08] p-3.5 text-sm text-amber-100/90">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-300" />
           {w}
         </div>
       ))}
 
-      {plan && (
-        <div className="space-y-4">
-          {sections.map((sec) => {
-            const list = items.filter((i) => i.section === sec);
-            if (!list.length) return null;
-            return (
-              <Card key={sec} className="p-0">
-                <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
-                  <h3 className="text-sm font-semibold">{SECTION_LABEL[sec]}</h3>
-                  {sec === "main" && (
-                    <button onClick={() => setSeed(Date.now())} className="flex items-center gap-1 text-xs text-accent">
+      {plan &&
+        sections.map((sec) => {
+          const list = items.filter((i) => i.section === sec);
+          if (!list.length) return null;
+          return (
+            <section key={sec}>
+              <SectionHeader
+                title={SECTION_LABEL[sec]}
+                action={
+                  sec === "main" && (
+                    <button onClick={() => setSeed(Date.now())} className="flex items-center gap-1.5 text-xs font-semibold text-accent">
                       <Shuffle size={14} /> Shuffle
                     </button>
-                  )}
-                </div>
-                <div className="px-4">
+                  )
+                }
+              />
+              <Card className="p-1.5">
+                <AnimatePresence initial={false}>
                   {list.map((it) => {
                     const ex = db.byId.get(it.exerciseId)!;
+                    const num = sec === "main" ? ++n : null;
                     return (
-                      <div key={it.uid} className="border-b border-line py-2.5 last:border-0">
-                        <div className="flex items-center gap-2">
-                          <button className="min-w-0 flex-1 text-left" onClick={() => setDetail(ex.id)}>
-                            <div className="truncate font-medium">{ex.name}</div>
-                            <div className="text-xs text-muted">
-                              {targetText(it)}
-                              {it.mode === "reps" && ` · rest ${it.target.restSec}s`}
-                            </div>
-                          </button>
-                          <button onClick={() => setDetail(ex.id)} className="p-2 text-muted" aria-label="Info">
-                            <Info size={18} />
-                          </button>
-                          {sec === "main" && (
-                            <button onClick={() => setSwap(it)} className="p-2 text-muted" aria-label="Swap">
-                              <ArrowLeftRight size={18} />
-                            </button>
+                      <motion.div
+                        key={it.uid}
+                        layout
+                        initial={{ opacity: 0, scale: 0.97 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="flex items-center gap-3 rounded-2xl p-2 transition hover:bg-white/[0.03]"
+                      >
+                        <button onClick={() => setDetail(ex.id)} className="relative shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={IMAGE_BASE + ex.images[0]} alt="" loading="lazy" className="h-14 w-14 rounded-xl bg-white object-cover" />
+                          {num && (
+                            <span className="num absolute -left-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-accent text-sm font-bold text-accent-ink ring-2 ring-[#0f1116]">
+                              {num}
+                            </span>
                           )}
-                          <button
-                            onClick={() => setItems((xs) => xs.filter((x) => x.uid !== it.uid))}
-                            className="p-2 text-muted"
-                            aria-label="Remove"
-                          >
-                            <Trash2 size={18} />
+                        </button>
+                        <button className="min-w-0 flex-1 text-left" onClick={() => setDetail(ex.id)}>
+                          <div className="truncate font-semibold">{ex.name}</div>
+                          <div className="mt-0.5 text-xs text-muted">
+                            {targetText(it)}
+                            {it.mode === "reps" && ` · ${it.target.restSec}s rest`}
+                          </div>
+                          {it.note && sec === "main" && (
+                            <div className="mt-1 line-clamp-1 text-[11px] font-medium text-accent/90">{it.note}</div>
+                          )}
+                        </button>
+                        {sec === "main" && (
+                          <button onClick={() => setSwap(it)} className="rounded-full bg-white/[0.05] p-2 text-muted" aria-label="Swap">
+                            <ArrowLeftRight size={16} />
                           </button>
-                        </div>
-                        {it.note && <p className="mt-1 text-xs text-accent/80">{it.note}</p>}
-                      </div>
+                        )}
+                        <button
+                          onClick={() => setItems((xs) => xs.filter((x) => x.uid !== it.uid))}
+                          className="rounded-full p-2 text-muted/70"
+                          aria-label="Remove"
+                        >
+                          <X size={16} />
+                        </button>
+                      </motion.div>
                     );
                   })}
-                </div>
+                </AnimatePresence>
                 {sec === "main" && (
-                  <button onClick={() => setAdding(true)} className="w-full border-t border-line py-3 text-sm text-accent">
-                    + Add exercise
+                  <button
+                    onClick={() => setAdding(true)}
+                    className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-white/10 py-3 text-sm font-semibold text-accent"
+                  >
+                    <Plus size={16} /> Add exercise
                   </button>
                 )}
               </Card>
-            );
-          })}
-        </div>
-      )}
+            </section>
+          );
+        })}
 
-      <div className="sticky bottom-24 z-10">
-        <Button variant="primary" size="lg" className="w-full shadow-xl shadow-black/50" onClick={begin} disabled={!plan}>
-          Start workout
-        </Button>
+      <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-lg px-3 pb-[max(env(safe-area-inset-bottom),12px)]">
+        <div className="glass flex items-center gap-3 rounded-[26px] border border-white/10 p-2 pl-5 shadow-[0_20px_50px_-20px_rgb(0_0_0/0.9)]">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-bold">{plan?.workout.title ?? "Pick muscles"}</div>
+            <div className="text-xs text-muted">{plan ? `${mainItems.length} exercises · ~${estMin} min` : "Tap the body to choose"}</div>
+          </div>
+          <Button variant="primary" size="lg" className="rounded-[20px] px-7" onClick={begin} disabled={!plan}>
+            <Play size={18} fill="currentColor" /> Start
+          </Button>
+        </div>
       </div>
 
       <Sheet open={!!swap} onClose={() => setSwap(null)} title="Swap exercise">

@@ -1,14 +1,15 @@
 "use client";
 
 import { requireProfile } from "@/components/RequireProfile";
-import { ChevronRight, Play, Sparkles } from "lucide-react";
+import { ArrowRight, Flame, Play, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { BodyMap } from "@/components/body/BodyMap";
 import type { Palette } from "@/components/body/palette";
 import { ExerciseDetail } from "@/components/ExerciseDetail";
 import { ExerciseRow } from "@/components/ExerciseList";
-import { Card, Chip, Sheet, Spinner, Stat } from "@/components/ui";
+import { CountUp, Rings } from "@/components/Rings";
+import { Card, Reveal, SectionHeader, Segmented, Sheet, Spinner, Stat } from "@/components/ui";
 import {
   fatigueByMuscle,
   lastTrainedDays,
@@ -16,21 +17,24 @@ import {
   volumeByMuscle,
   weekStreak,
 } from "@/lib/analytics";
-import { useExercises, useMountTime } from "@/lib/exercises";
-import { candidatesFor, suggestFocus } from "@/lib/generator";
+import { useExercises } from "@/lib/exercises";
+import { candidatesFor, FOCI, suggestFocus } from "@/lib/generator";
 import { MUSCLE_LABEL, type MuscleScores } from "@/lib/muscles";
+import { computeRings, thisWeek, weekDays } from "@/lib/rings";
 import { useData, useHistory, useWorkout } from "@/lib/store";
 import type { MuscleId } from "@/lib/types";
+import { cn, daysAgo } from "@/lib/util";
 
-const MODES: { id: string; label: string; palette: Palette; legend: [string, string]; help: string }[] = [
-  { id: "recovery", label: "Recovery", palette: "recovery", legend: ["Fresh", "Fatigued"], help: "How recovered each muscle is from recent training." },
-  { id: "week", label: "This week", palette: "heat", legend: ["A few sets", "10+ sets"], help: "Working sets per muscle over the last 7 days." },
-  { id: "neglect", label: "Overdue", palette: "neglect", legend: ["Recently", "2+ weeks"], help: "How long since each muscle was trained." },
-];
+type ModeId = "recovery" | "week" | "neglect";
+const MODES: Record<ModeId, { label: string; palette: Palette; legend: [string, string]; help: string }> = {
+  recovery: { label: "Recovery", palette: "recovery", legend: ["Fresh", "Fatigued"], help: "How recovered each muscle is" },
+  week: { label: "This week", palette: "heat", legend: ["A few sets", "10+ sets"], help: "Working sets per muscle, last 7 days" },
+  neglect: { label: "Overdue", palette: "neglect", legend: ["Recently", "2+ weeks"], help: "Time since each muscle was trained" },
+};
 
 function greeting() {
   const h = new Date().getHours();
-  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  return h < 5 ? "Late night" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 }
 
 function Home() {
@@ -38,10 +42,9 @@ function Home() {
   const history = useHistory();
   const profile = useData((s) => s.profile)!;
   const active = useWorkout((s) => s.active);
-  const [mode, setMode] = useState(MODES[0]);
+  const [mode, setMode] = useState<ModeId>("recovery");
   const [muscle, setMuscle] = useState<MuscleId | null>(null);
   const [detail, setDetail] = useState<string | null>(null);
-  const now = useMountTime();
 
   const data = useMemo(() => {
     if (!db) return null;
@@ -54,79 +57,152 @@ function Home() {
         recovery: fatigueByMuscle(history, db),
         week: weekScores,
         neglect: neglectScores(history, db),
-      } as Record<string, MuscleScores>,
+      } as Record<ModeId, MuscleScores>,
       days: lastTrainedDays(history, db),
       suggestion: suggestFocus(history, db),
+      rings: computeRings(thisWeek(history), db, profile),
+      week: weekDays(history),
     };
-  }, [db, history]);
+  }, [db, history, profile]);
 
   if (!db || !data) return <Spinner />;
 
-  const weekAgo = now - 7 * 86_400_000;
-  const thisWeek = history.filter((w) => new Date(w.started_at).getTime() > weekAgo).length;
+  const focus = FOCI.find((f) => f.id === data.suggestion.focus)!;
+  const focusLabel = focus.label.replace(/ \(.*\)/, "");
+  const lastDays = history[0] ? daysAgo(history[0].started_at) : null;
+  const initial = (profile.display_name ?? "You").trim()[0]?.toUpperCase();
 
   return (
-    <div className="space-y-4">
-      <header>
-        <p className="text-sm text-muted">
-          {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}
-        </p>
-        <h1 className="text-2xl font-bold">
-          {greeting()}
-          {profile.display_name ? `, ${profile.display_name}` : ""}
-        </h1>
-      </header>
+    <div className="space-y-5">
+      <Reveal>
+        <header className="flex items-start justify-between pt-1">
+          <div>
+            <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
+              {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" })}
+            </p>
+            <h1 className="mt-1 text-[30px] font-bold leading-tight tracking-tight">
+              {greeting()}
+              {profile.display_name ? (
+                <>
+                  ,<br />
+                  <span className="text-accent">{profile.display_name}</span>
+                </>
+              ) : null}
+            </h1>
+          </div>
+          <Link
+            href="/profile"
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-white/15 to-white/[0.03] text-lg font-bold"
+          >
+            {initial}
+          </Link>
+        </header>
+      </Reveal>
 
-      {active ? (
-        <Link href="/workout">
-          <Card className="flex items-center gap-3 border-accent/50 bg-accent/10">
-            <Play className="text-accent" />
-            <div className="flex-1">
-              <div className="font-semibold">Resume: {active.title}</div>
-              <div className="text-xs text-muted">Workout in progress</div>
+      {/* Weekly rings */}
+      <Reveal i={1}>
+        <Card className="p-5">
+          <div className="flex items-center gap-5">
+            <div className="relative shrink-0">
+              <Rings rings={data.rings} size={150} stroke={15} gap={4} />
             </div>
-            <ChevronRight className="text-muted" />
-          </Card>
-        </Link>
-      ) : (
-        <Link href={`/plan?focus=${data.suggestion.focus}`}>
-          <Card className="flex items-center gap-3">
-            <div className="rounded-xl bg-accent p-2.5 text-accent-ink">
-              <Sparkles size={20} />
+            <div className="min-w-0 flex-1 space-y-3">
+              {data.rings.map((r) => (
+                <div key={r.key}>
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.1em]" style={{ color: r.color }}>
+                    {r.label}
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <CountUp value={r.value} className="num text-[26px] font-semibold" />
+                    <span className="num text-lg text-muted">/{r.target}</span>
+                    <span className="ml-1 text-xs text-muted">{r.unit}</span>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="flex-1">
-              <div className="font-semibold">Build today&apos;s workout</div>
-              <div className="text-xs text-muted">{data.suggestion.reason}</div>
-            </div>
-            <ChevronRight className="text-muted" />
-          </Card>
-        </Link>
-      )}
+          </div>
+          <div className="mt-5 grid grid-cols-7 gap-1.5">
+            {data.week.map((d) => (
+              <div key={d.date.toISOString()} className="flex flex-col items-center gap-1.5">
+                <span className={cn("text-[11px] font-semibold", d.today ? "text-ink" : "text-muted")}>{d.label}</span>
+                <span
+                  className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-full border",
+                    d.trained
+                      ? "border-accent bg-accent text-accent-ink shadow-[0_0_14px_-3px_rgb(198_244_50/0.8)]"
+                      : d.today
+                        ? "border-white/40"
+                        : "border-white/10",
+                  )}
+                >
+                  {d.trained && <Flame size={14} strokeWidth={2.6} />}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </Reveal>
 
-      <div className="grid grid-cols-3 gap-2">
-        <Stat label="This week" value={thisWeek} />
-        <Stat label="Week streak" value={weekStreak(history)} />
-        <Stat label="Total" value={history.length} />
-      </div>
+      {/* Today */}
+      <Reveal i={2}>
+        {active ? (
+          <Link href="/workout" className="block">
+            <div className="relative overflow-hidden rounded-3xl border border-accent/30 bg-[linear-gradient(135deg,rgb(198_244_50/0.22),rgb(62_230_255/0.08)_60%,transparent)] p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">In progress</p>
+              <div className="mt-1 text-2xl font-bold">{active.title}</div>
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-ink">
+                <Play size={16} fill="currentColor" /> Resume workout
+              </div>
+            </div>
+          </Link>
+        ) : (
+          <Link href={`/plan?focus=${data.suggestion.focus}`} className="block">
+            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[linear-gradient(135deg,rgb(198_244_50/0.20),rgb(62_230_255/0.07)_55%,rgb(255_90_110/0.06))] p-5">
+              <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-accent/20 blur-3xl" />
+              <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">
+                <Sparkles size={13} /> Today&apos;s pick
+              </p>
+              <div className="num mt-2 text-[44px] font-bold uppercase">{focusLabel}</div>
+              <p className="mt-1 max-w-[85%] text-sm text-ink/70">{data.suggestion.reason}</p>
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-xs font-medium text-muted">{profile.session_minutes} min · built for you</span>
+                <span className="glow-accent flex h-11 items-center gap-2 rounded-full bg-accent pl-5 pr-4 text-sm font-bold text-accent-ink">
+                  Let&apos;s go <ArrowRight size={18} />
+                </span>
+              </div>
+            </div>
+          </Link>
+        )}
+      </Reveal>
 
-      <div>
-        <div className="mb-2 flex gap-2">
-          {MODES.map((m) => (
-            <Chip key={m.id} active={mode.id === m.id} onClick={() => setMode(m)}>
-              {m.label}
-            </Chip>
-          ))}
-        </div>
+      {/* Body */}
+      <Reveal i={3}>
+        <SectionHeader title="Your body" action={<span className="text-xs text-muted">{MODES[mode].help}</span>} />
+        <Segmented
+          className="mb-3"
+          value={mode}
+          onChange={setMode}
+          options={(Object.keys(MODES) as ModeId[]).map((id) => ({ id, label: MODES[id].label }))}
+        />
         <BodyMap
-          className="h-[460px]"
-          scores={data.scores[mode.id]}
-          palette={mode.palette}
-          legend={mode.legend}
+          className="h-[440px]"
+          scores={data.scores[mode]}
+          palette={MODES[mode].palette}
+          legend={MODES[mode].legend}
           highlighted={muscle ? [muscle] : []}
           onSelect={setMuscle}
+          autoRotate
         />
-        <p className="mt-2 text-xs text-muted">{mode.help} Drag to rotate · tap a muscle.</p>
-      </div>
+        <p className="mt-2 text-center text-xs text-muted">Drag to spin · tap a muscle for details</p>
+      </Reveal>
+
+      <Reveal i={4}>
+        <div className="grid grid-cols-3 gap-2.5">
+          <Stat label="Streak" value={weekStreak(history)} sub="weeks" />
+          <Stat label="Workouts" value={history.length} sub="all time" />
+          <Stat label="Last" value={lastDays == null ? "—" : lastDays === 0 ? "Today" : `${lastDays}d`} sub={lastDays == null ? "no sessions" : lastDays === 0 ? "keep it up" : "ago"} />
+        </div>
+      </Reveal>
 
       <Sheet open={!!muscle} onClose={() => setMuscle(null)} title={muscle ? MUSCLE_LABEL[muscle] : ""}>
         {muscle && (
@@ -134,18 +210,18 @@ function Home() {
             <div className="grid grid-cols-3 gap-2">
               <Stat
                 label="Last trained"
-                value={data.days[muscle] == null ? "Never" : data.days[muscle] === 0 ? "Today" : `${data.days[muscle]}d ago`}
+                value={data.days[muscle] == null ? "Never" : data.days[muscle] === 0 ? "Today" : `${data.days[muscle]}d`}
               />
-              <Stat label="Sets (7d)" value={Math.round((data.volume[muscle] ?? 0) * 10) / 10} />
+              <Stat label="Sets · 7d" value={Math.round((data.volume[muscle] ?? 0) * 10) / 10} />
               <Stat label="Fatigue" value={`${Math.round((data.scores.recovery[muscle] ?? 0) * 100)}%`} />
             </div>
-            <h4 className="mb-1 mt-4 text-sm font-semibold">Good exercises for this</h4>
+            <SectionHeader className="mt-5" title="Good exercises for this" />
             {candidatesFor(muscle, db, profile.level)
               .slice(0, 8)
               .map(({ ex }) => (
                 <ExerciseRow key={ex.id} ex={ex} onClick={() => setDetail(ex.id)} />
               ))}
-            <Link href={`/exercises?muscle=${encodeURIComponent(muscle)}`} className="mt-3 block text-center text-sm text-accent">
+            <Link href={`/exercises?muscle=${encodeURIComponent(muscle)}`} className="mt-3 block text-center text-sm font-semibold text-accent">
               See all {MUSCLE_LABEL[muscle]} exercises
             </Link>
           </div>
